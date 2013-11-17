@@ -1,6 +1,6 @@
 var requery, define;
 (function (w) {
-    var ob = Object.prototypeб
+    var ob = Object.prototype,
         modulesQuery = [];
     //проверка на массив
     var isArray = function (item) {
