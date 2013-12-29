@@ -8,8 +8,14 @@
     </head>
     <body>
         <script type="text/javascript">
-            define('test', ['ajax', 'event'], function (test) {
-                console.log(test)
+            /*define('test', ['ajax', 'event'], function (test) {
+            console.log(test)
+            });*/
+
+            require(['ajax','event'], function (obj) {
+                console.log(obj);
+                obj.ajax.request();
+                obj.event.test();
             });
         </script>
     </body>
