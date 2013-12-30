@@ -1,4 +1,5 @@
-define('dom', ['ajax','event'], function (dom) {
-    ajax.request = function () { };
-    ajax.test = function () { };
+define('dom', ['ajax', 'event'], function (dom) {
+    dom.request = function () { };
+    dom.test = function () { };
+    return dom;
 });

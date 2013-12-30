@@ -12,11 +12,22 @@
             console.log(test)
             });*/
 
-            require(['ajax','event'], function (obj) {
+            require(['dom'], function (obj) {
+                console.log(obj);
+                //obj.ajax.request();
+               // obj.event.test();
+            });
+            /*
+            require(['ajax'], function (obj) {
                 console.log(obj);
                 obj.ajax.request();
+            });
+
+            require(['event'], function (obj) {
+                console.log(obj);
                 obj.event.test();
             });
+            */
         </script>
     </body>
 </html>

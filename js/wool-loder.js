@@ -1,16 +1,25 @@
 var require, define;
 (function (w) {
     var ob = Object.prototype,
-        modulesQuery = [],
         d = document,
         head = d.getElementsByTagName('head')[0],
         config = {},
         contexts = {},
-        uploaded = {};
+        uploaded = {},
+        currContext = null,
+        flag = false;
+        packeds = [];
 
     config = {
         modulPath: 'js/modules/',
-        defContextName: 'context_' 
+        defContextName: 'context' 
+    };
+
+    var Context = function () {
+        this.id = Math.random();
+        this.name = config.defContextName;
+        this.queue = [];
+        this.sandbox = null;
     };
 
     var Sandbox = function (modules, callback) {
@@ -29,7 +38,7 @@ var require, define;
                 this[modules[i][0]] = modules[i][2](this[modules[i][0]]);
             }
         }
-
+        
         callback(this);
     };
     //проверка на массив
@@ -69,8 +78,6 @@ var require, define;
        var ln = array.length,
            node = null,
            currentUrl = '';
-
-       //console.log(i);
 
        if (i === undefined) {
            i = 0;
@@ -113,28 +120,17 @@ var require, define;
     };
 
     var initModuls = function (array, callback) {
-        var context = null,
-            ln = modulesQuery.length,
-            contextName = config.defContextName;
-            modules = [];
+        var contextName = config.defContextName + '_' + array.join('_');
+            modules = currContext.queue;
+
+        console.log(currContext);
+
         //Выбираем модули которые необходимо проинициализировать
-        while (ln--) {
-           var loc = modulesQuery[ln];
-              
-           if (in_array(array, loc[0])) {
-               modules.push(loc);
-               contextName += '_' + loc[0]; 
-           }        
-        }
-        //Проверяем не был ли вызван такой пак ранее
-        if (!contexts[contextName]) {
-            context = Sandbox(modules, function (sandbox) {
-                callback(sandbox);
-            });
-            contexts[contextName] = context;
-        } else {
-            callback(contexts[contextName]);
-        }
+        currContext.sandbox = Sandbox(modules, function (sandbox) {
+            callback(sandbox);
+        });
+
+        contexts[contextName] = currContext;
     };
 
     /*
@@ -143,18 +139,35 @@ var require, define;
     * @param Function вынкция обратного вызова
     */
     require = function (array, callback) {
+        var contextName = config.defContextName + '_';
         if (!isArray(array)) {
             throw ('В качестве списка модулей передан не массив!');
         }
-
+        contextName += array.join('_');
         //подгружаем js-файлы
         var ln = array.length;
-        //Подгрузаем скрипты
-        load(array, function () {
-           var obj = initModuls(array, function (sandbox) {
-               callback(sandbox);    
-           });        
-        });
+        //Подгружаем скрипты
+        var interval = setInterval (function () {
+            if (!flag) {
+                //Смотрим нужно ли создавать новый контекст или можно обойтись уже созданным
+                if (!contexts[contextName]) {
+                    currContext = new Context();
+
+                    load(array, function () {
+                        initModuls(array, function (sandbox) {
+                            callback(sandbox);
+                            clearInterval(interval);
+                            flag= false;
+                        });     
+                           
+                    });
+                } else {
+                    callback(contexts[contextName].sandbox);   
+                    flag= false; 
+                }
+                flag= true;
+            }
+        }, 100);
     };
 
     /*
@@ -169,8 +182,9 @@ var require, define;
             callback = deps;
             deps = null;
         }
-
+        
         //регистрируем новый модуль
-        modulesQuery.push([name, deps, callback]);
+        currContext.name += '_' + name; 
+        currContext.queue.push([name, deps, callback]);       
     };
 })(window);
