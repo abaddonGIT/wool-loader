@@ -8,39 +8,41 @@ var require, define;
         uploaded = {},
         currContext = null,
         flag = false;
-        packeds = [];
 
     config = {
         modulPath: 'js/modules/',
         defContextName: 'context' 
     };
 
-    var Context = function () {
-        this.id = Math.random();
+    var Sandbox = function () {
+
+        if (!(this instanceof Sandbox)) {
+            return new Sandbox();
+        }
+
         this.name = config.defContextName;
         this.queue = [];
         this.sandbox = null;
-    };
-
-    var Sandbox = function (modules, callback) {
-        var ln = modules.length, S = null;
-
-        if (!(this instanceof Sandbox)) {
-            return new Sandbox(modules, callback);
-        }
-
-        //Инициализируем модули
-        for (var i = 0; i < ln; i++) {
-            if (this[modules[i][0]] === undefined) {
-                this[modules[i][0]] = {};
-                this[modules[i][0]] = modules[i][2](this[modules[i][0]]);
-            } else {
-                this[modules[i][0]] = modules[i][2](this[modules[i][0]]);
+        /*
+        * Расширяет объект переданными модулями
+        * @param Array modules - массив модулей
+        */
+        this.add = function (modules) {
+            var ln = modules.length;
+            //Инициализируем модули
+            for (var i = 0; i < ln; i++) {
+                if (this[modules[i][0]] === undefined) {
+                    this[modules[i][0]] = {};
+                    this[modules[i][0]] = modules[i][2](this[modules[i][0]]);
+                } else {
+                    this[modules[i][0]] = modules[i][2](this[modules[i][0]]);
+                }
             }
+
+            return this;
         }
-        
-        callback(this);
     };
+
     //проверка на массив
     var isArray = function (item) {
         return ob.toString.call(item) === "[object Array]"; 
@@ -121,53 +123,69 @@ var require, define;
 
     var initModuls = function (array, callback) {
         var contextName = config.defContextName + '_' + array.join('_');
-            modules = currContext.queue;
+            modules = currContext.queue,
+            sandbox = null;
 
-        console.log(currContext);
-
-        //Выбираем модули которые необходимо проинициализировать
-        currContext.sandbox = Sandbox(modules, function (sandbox) {
-            callback(sandbox);
-        });
-
+        //расширяем объект модулями
+        sandbox = currContext.add(modules);
         contexts[contextName] = currContext;
+        callback(sandbox);
     };
 
     /*
     * Подгрузка и инициализация модулей
     * @param Array массив модулей
     * @param Function вынкция обратного вызова
+    * @param Int type - тип подгрузки 
+    *  1 - передается массив названий модулей объявленных при помощи define
+    *  Создает изолированное пространнствои для рабботы с модулями
+    *  2 - Передается массив путей для загружаемых файлов
+    *  Просто подгружает заданные файлы
     */
-    require = function (array, callback) {
+    require = function (array, callback, type) {
         var contextName = config.defContextName + '_';
+        
         if (!isArray(array)) {
             throw ('В качестве списка модулей передан не массив!');
         }
-        contextName += array.join('_');
-        //подгружаем js-файлы
-        var ln = array.length;
-        //Подгружаем скрипты
-        var interval = setInterval (function () {
-            if (!flag) {
-                //Смотрим нужно ли создавать новый контекст или можно обойтись уже созданным
-                if (!contexts[contextName]) {
-                    currContext = new Context();
 
-                    load(array, function () {
-                        initModuls(array, function (sandbox) {
-                            callback(sandbox);
-                            clearInterval(interval);
-                            flag= false;
-                        });     
+        if (type === undefined) {
+            type = 1;
+        }
+
+        switch (type) {
+            case 1:
+                contextName += array.join('_');
+                //подгружаем js-файлы
+                var ln = array.length;
+                //Подгружаем скрипты
+                var interval = setInterval (function () {
+                    if (!flag) {
+                        //Смотрим нужно ли создавать новый контекст или можно обойтись уже созданным
+                        if (!contexts[contextName]) {
+                            currContext = Sandbox();
+
+                            load(array, function () {
+                                initModuls(array, function (sandbox) {
+                                    callback(sandbox);
+                                    clearInterval(interval);
+                                    flag= false;
+                                });     
                            
-                    });
-                } else {
-                    callback(contexts[contextName].sandbox);   
-                    flag= false; 
-                }
-                flag= true;
-            }
-        }, 100);
+                            });
+                        } else {
+                            clearInterval(interval);
+                            callback(contexts[contextName].sandbox);   
+                            flag= false; 
+                        }
+                        flag= true;
+                    }
+                }, 100);       
+                break;
+            case 2:
+
+                break;
+        }
     };
 
     /*
