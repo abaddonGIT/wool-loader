@@ -1,5 +1,13 @@
+/******************************************************
+ * Copyright 2014 by Abaddon <abaddongit@gmail.com>
+ * @author Abaddon <abaddongit@gmail.com>
+ * @version 0.0.1
+ * **************************************************/
+
 var require, define;
 (function (w) {
+    "use strict";
+
     var ob = Object.prototype,
         d = document,
         head = d.getElementsByTagName('head')[0],
@@ -112,7 +120,7 @@ var require, define;
         var ln = array.length;
         
         while (ln--) {
-            loc = array[ln];
+            var loc = array[ln];
             if (loc === string) {
                 return true;
             }
@@ -216,7 +224,7 @@ var require, define;
     };
 
     var initModuls = function (array, callback) {
-        var contextName = config.defContextName + '_' + array.join('_');
+        var contextName = config.defContextName + '_' + array.join('_'),
             modules = [],
             sandbox = null,
             ln = null;
