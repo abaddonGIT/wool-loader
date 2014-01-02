@@ -28,7 +28,11 @@ var require, define;
         * @param Object module - модуль зависимости, которого регитсрируются
         */
         this.addDeps = function (module) {
-            var deps = module[1], ln = null, depsAr = [];
+            var deps = module[1],
+                moduleName = module[0],
+                moduleFn = module[2], 
+                ln = null, 
+                depsAr = [];
 
             depsAr[0] = {};
 
@@ -46,9 +50,9 @@ var require, define;
                         this.addDeps(loc);
                     }
                 }
-                this[module[0]] = module[2].apply(this, depsAr);
+                this[moduleName] = moduleFn.apply(this, depsAr);
             }  else {
-                this[module[0]] = module[2]({});
+                this[moduleName] = moduleFn({});
             }      
         };
         /*
@@ -116,18 +120,34 @@ var require, define;
         return false;
     };
     /*
-    * Создает элемент script
+    * Создает элемент
+    * @param String тип создаваемого элемента script или link
     * @return Object node - объект созданного элемента
     */
-    var createNode = function () {
-        var node = d.createElement('script');  
-        node.type = "text/javascript";
-        node.charset = "utf-8";
-        node.async = true;
+    var createNode = function (type) {
+        var node = null;
+
+        if (type === undefined) {
+            type = 'js';
+        }
+
+        switch (type) {
+            case 'js':
+                node = d.createElement('script');  
+                node.type = "text/javascript";
+                node.charset = "utf-8";
+                node.async = true;       
+                break;
+            case 'css':
+                node = d.createElement('link');
+                node.type = "text/css";
+                node.rel = "stylesheet";
+                break;
+        }
         return node;   
     };
     /*
-    * Ф-я для подгрузки скриптов на сайт
+    * Ф-я для подгрузки файлов на сайт
     * @param Array array - Массив названий модулей
     * @param Int i - шаг
     * @param Function callback - ф-я выполняется после подгрузки всех скриптов
@@ -135,6 +155,7 @@ var require, define;
     var load = function (array, callback, i) {
        var ln = array.length,
            node = null,
+           modName = null,
            currentUrl = '';
 
        if (i === undefined) {
@@ -142,13 +163,31 @@ var require, define;
        }
 
         if (i < ln) {
-            //Создание элемента script
-            currentUrl = config.modulPath + array[i] + '/' + array[i] + '.js';
-            node = createNode();
-            node.src = currentUrl;
+            //проверяем передано ли название модуля или имя файла
+            var names = array[i].split('.'),
+                fileExt = names[names.length - 1];
+
+            //console.log(fileExt);
+
+            if (names[1] === undefined) {
+                node = createNode();
+                currentUrl = config.modulPath + array[i] + '/' + array[i] + '.js';
+                node.src = currentUrl;
+            } else {
+                currentUrl = array[i];
+                switch (fileExt) {
+                    case 'js':
+                        node = createNode();
+                        node.src = currentUrl;
+                        break;
+                    case 'css':
+                        node = createNode('css');
+                        node.href = currentUrl;
+                        break;
+                }
+            }
             //проверяем не был ли загружен этот файл ранее
             if (!uploaded[currentUrl]) {
-                //Для IE
                 if (node.readyState) {
                     node.onreadystatechange = function() {
                         if (node.readyState === 'complete' || node.readyState === 'loaded') {
@@ -163,7 +202,6 @@ var require, define;
                         load(array, callback, i);
                     }
                 }
-                //Ошибка
                 node.onerror = function () {
                     throw ('Не могу загрузить скрипт ' + array[i]);
                 }
@@ -301,7 +339,10 @@ var require, define;
                 }, 100);       
                 break;
             case 2:
-
+                load(array, function () {
+                    var sandbox = new Sandbox();
+                    callback(sandbox);    
+                });
                 break;
         }
     };
