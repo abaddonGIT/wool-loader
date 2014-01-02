@@ -22,23 +22,79 @@ var require, define;
 
         this.name = config.defContextName;
         this.queue = [];
-        this.sandbox = null;
+
+        /*
+        * Регистрирует зависимости для переданного модуля
+        * @param Object module - модуль зависимости, которого регитсрируются
+        */
+        this.addDeps = function (module) {
+            var deps = module[1], ln = null, depsAr = [];
+
+            depsAr[0] = {};
+
+            if (deps) {
+                ln = this.queue.length;
+                for (var i = 0; i < ln; i++) {
+                    if (in_array(deps, this.queue[i][0])) {
+                        var loc = this.queue[i],
+                            name = loc[0],
+                            depend = this[name] = {};
+
+                        this[name] = loc[2](depend);
+                        depsAr.push(this[name]);
+
+                        this.addDeps(loc);
+                    }
+                }
+                this[module[0]] = module[2].apply(this, depsAr);
+            }  else {
+                this[module[0]] = module[2]({});
+            }      
+        };
         /*
         * Расширяет объект переданными модулями
         * @param Array modules - массив модулей
         */
         this.add = function (modules) {
             var ln = modules.length;
+
             //Инициализируем модули
             for (var i = 0; i < ln; i++) {
-                if (this[modules[i][0]] === undefined) {
-                    this[modules[i][0]] = {};
-                    this[modules[i][0]] = modules[i][2](this[modules[i][0]]);
-                } else {
-                    this[modules[i][0]] = modules[i][2](this[modules[i][0]]);
-                }
-            }
+                var module = modules[i],
+                    moduleName = module[0],
+                    moduleFn = module[2],
+                    deps = modules[i][1],
+                    depsAr = [];
+                //Тут попробуем подгрузить зависимости
+                var queueLength = this.queue.length;
 
+                depsAr[0] = null;
+
+                if (deps) {//Если объявленны зависимости
+                    for (var j = 0; j < queueLength; j++) {
+                        if (in_array(deps, this.queue[j][0])) {
+                            var loc = this.queue[j],
+                                name = loc[0],
+                                depend = this[name] = {};
+
+                            //добавляем зависимости для внутренних элементов
+                            this.addDeps(loc);
+                            depsAr.push(this[name]);
+                        }
+                    }
+                }
+                
+                if (this[moduleName] === undefined) {
+                    this[moduleName] = {};
+                     depsAr[0] = this[moduleName];   
+                     this[moduleName] = moduleFn.apply(this,depsAr);
+                 } else {
+                     depsAr[0] = this[moduleName];
+                     this[moduleName] = moduleFn.apply(this,depsAr);
+                 }
+                            
+            }
+            //console.log(this);
             return this;
         }
     };
@@ -123,13 +179,75 @@ var require, define;
 
     var initModuls = function (array, callback) {
         var contextName = config.defContextName + '_' + array.join('_');
-            modules = currContext.queue,
-            sandbox = null;
+            modules = [],
+            sandbox = null,
+            ln = null;
 
-        //расширяем объект модулями
-        sandbox = currContext.add(modules);
-        contexts[contextName] = currContext;
-        callback(sandbox);
+        clearArray(currContext.queue);
+        //Выбираем из очереди только модули и отсекаем зависимости
+        
+        ln = currContext.queue.length;
+        for (var i = 0; i < ln; i++) {
+            if (in_array(array, currContext.queue[i][0])) {
+                modules.push(currContext.queue[i]);
+            }
+        }
+        
+        //Тут надо разобраться с зависимостями
+        loadDeps(currContext.queue, function () {
+            //расширяем объект модулями
+            sandbox = currContext.add(modules);
+            contexts[contextName] = currContext;
+            callback(sandbox);
+        });
+    };
+
+
+    /*
+    * Подгружает зависимости
+    */
+    var loadDeps = function (modules, callback, i) {
+        var ln = modules.length,
+            deps = null;
+
+        if (i === undefined) {
+            i = 0;
+        }
+
+        if (i < ln) {
+            deps = modules[i][1];
+
+            if (deps) {
+               //загружаем зависимости 
+               load(deps, function () {
+                   i++;
+                   loadDeps(modules,callback,i);         
+               }); 
+            } else {
+               i++;
+               loadDeps(modules,callback,i); 
+            }
+        } else {
+            callback();
+        }
+    };
+
+    var clearArray = function (array) {
+        var ln = array.length, 
+            newArray = [],
+            retArray = [];
+
+        for (var i = 0; i < ln; i++) {
+            if (!in_array(newArray, array[i][0])) {
+                newArray[array[i][0]] = array[i];
+            }
+        }
+       
+        for (var i in newArray) {
+            retArray.push(newArray[i]);
+        }
+
+        currContext.queue = retArray;
     };
 
     /*

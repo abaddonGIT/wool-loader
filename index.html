@@ -12,20 +12,18 @@
             console.log(test)
             });*/
 
-            require(['dom'], function (obj) {
-                console.log(obj);
-                //obj.ajax.request();
-               // obj.event.test();
-            });
-            
-            require(['ajax','event'], function (obj) {
-                console.log(obj);
+            require(['ajax'], function (obj) {
+                //console.log(obj);
                 obj.ajax.request();
+            });
+
+            require(['widget'], function (obj) {
+                 //console.log(obj);
             });
             /*
             require(['event'], function (obj) {
-                console.log(obj);
-                obj.event.test();
+            console.log(obj);
+            obj.event.test();
             });
             */
         </script>
