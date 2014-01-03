@@ -8,12 +8,13 @@ var require, define;
 (function (w) {
     "use strict";
 
-    var ob = Object.prototype,
+    var defQueue = [],
+        ob = Object.prototype,
         d = document,
         head = d.getElementsByTagName('head')[0],
         config = {},
         contexts = {},
-        uploaded = {},
+        uploaded = [],
         currContext = null,
         flag = false;
 
@@ -23,92 +24,89 @@ var require, define;
     };
 
     var Sandbox = function () {
-
         if (!(this instanceof Sandbox)) {
             return new Sandbox();
         }
-
         this.name = config.defContextName;
         this.queue = [];
+        this.modules = [];
+    };
+    /*
+    * Расширяет объект переданными модулями
+    * @param Array modules - массив модулей
+    * @return Object щбъект писочницы
+    */
+    Sandbox.prototype.add = function (modules) {
+        var ln = modules.length;
 
-        /*
-        * Регистрирует зависимости для переданного модуля
-        * @param Object module - модуль зависимости, которого регитсрируются
-        */
-        this.addDeps = function (module) {
-            var deps = module[1],
-                moduleName = module[0],
-                moduleFn = module[2], 
-                ln = null, 
-                depsAr = [];
+        //Инициализируем модули
+        for (var i = 0; i < ln; i++) {
+            var module = modules[i],
+            moduleName = module[0],
+            moduleFn = module[2],
+            deps = modules[i][1],
+            depsAr = [];
+            //Тут попробуем подгрузить зависимости
+            var queueLength = this.queue.length;
 
-            depsAr[0] = {};
+            depsAr[0] = null;
 
-            if (deps) {
-                ln = this.queue.length;
-                for (var i = 0; i < ln; i++) {
-                    if (in_array(deps, this.queue[i][0])) {
-                        var loc = this.queue[i],
-                            name = loc[0],
-                            depend = this[name] = {};
+            if (deps) {//Если объявленны зависимости
+                for (var j = 0; j < queueLength; j++) {
+                   if (in_array(deps, this.queue[j][0])) {
+                       var loc = this.queue[j],
+                       name = loc[0],
+                       depend = this['modules'][name] = {};
 
-                        this[name] = loc[2](depend);
-                        depsAr.push(this[name]);
-
-                        this.addDeps(loc);
-                    }
+                       //добавляем зависимости для внутренних элементов
+                       this.addDeps(loc);
+                       depsAr.push(this['modules'][name]);
+                   }
                 }
-                this[moduleName] = moduleFn.apply(this, depsAr);
-            }  else {
-                this[moduleName] = moduleFn({});
-            }      
-        };
-        /*
-        * Расширяет объект переданными модулями
-        * @param Array modules - массив модулей
-        */
-        this.add = function (modules) {
-            var ln = modules.length;
-
-            //Инициализируем модули
-            for (var i = 0; i < ln; i++) {
-                var module = modules[i],
-                    moduleName = module[0],
-                    moduleFn = module[2],
-                    deps = modules[i][1],
-                    depsAr = [];
-                //Тут попробуем подгрузить зависимости
-                var queueLength = this.queue.length;
-
-                depsAr[0] = null;
-
-                if (deps) {//Если объявленны зависимости
-                    for (var j = 0; j < queueLength; j++) {
-                        if (in_array(deps, this.queue[j][0])) {
-                            var loc = this.queue[j],
-                                name = loc[0],
-                                depend = this[name] = {};
-
-                            //добавляем зависимости для внутренних элементов
-                            this.addDeps(loc);
-                            depsAr.push(this[name]);
-                        }
-                    }
-                }
-                
-                if (this[moduleName] === undefined) {
-                    this[moduleName] = {};
-                     depsAr[0] = this[moduleName];   
-                     this[moduleName] = moduleFn.apply(this,depsAr);
-                 } else {
-                     depsAr[0] = this[moduleName];
-                     this[moduleName] = moduleFn.apply(this,depsAr);
-                 }
-                            
             }
-            //console.log(this);
-            return this;
-        }
+                
+            if (this['modules'][moduleName] === undefined) {
+                this['modules'][moduleName] = {};
+                depsAr[0] = this['modules'][moduleName];   
+                this['modules'][moduleName] = moduleFn.apply(this,depsAr);
+            } else {
+                depsAr[0] = this['modules'][moduleName];
+                this['modules'][moduleName] = moduleFn.apply(this,depsAr);
+            }           
+       }
+       return this;    
+    };
+
+    /*
+    * Регистрирует зависимости для переданного модуля
+    * @param Object module - модуль зависимости, которого регитсрируются
+    */
+    Sandbox.prototype.addDeps = function (module) {
+        var deps = module[1],
+            moduleName = module[0],
+            moduleFn = module[2], 
+            ln = null, 
+            depsAr = [];
+
+        depsAr[0] = {};
+        if (deps) {
+            ln = this.queue.length;
+            for (var i = 0; i < ln; i++) {
+                if (in_array(deps, this.queue[i][0])) {
+                    var loc = this.queue[i],
+                        name = loc[0],
+                        depend = this['modules'][name] = {};
+
+                    this['modules'][name] = loc[2](depend);
+                    depsAr.push(this['modules'][name]);
+                    this.addDeps(loc);
+                }
+            }
+
+            this['modules'][moduleName] = moduleFn.apply(this, depsAr);
+        }  else {
+            this['modules'][moduleName] = moduleFn({});
+        }      
     };
 
     //проверка на массив
@@ -160,69 +158,81 @@ var require, define;
     * @param Int i - шаг
     * @param Function callback - ф-я выполняется после подгрузки всех скриптов
     */
-    var load = function (array, callback, i) {
-       var ln = array.length,
-           node = null,
-           modName = null,
-           currentUrl = '';
+    var load = function (array, callback) {
+       var modules = [], ln = array.length, currentUrl = '', _loading = null, node = null;
+       
+       for (var i = 0; i < ln; i++) {
+           modules.push(array[i]);    
+       } 
 
-       if (i === undefined) {
-           i = 0;
-       }
+       currentUrl = '';
 
-        if (i < ln) {
-            //проверяем передано ли название модуля или имя файла
-            var names = array[i].split('.'),
-                fileExt = names[names.length - 1];
+       _loading = function (file) {
+          var names = file.split('.'),
+              fileExt = names[names.length - 1];
 
-            //console.log(fileExt);
+          if (names[1] === undefined) {
+              currentUrl = config.modulPath + file + '/' + file + '.js';
+          } else {
+              currentUrl = file;
+          }
 
-            if (names[1] === undefined) {
-                node = createNode();
-                currentUrl = config.modulPath + array[i] + '/' + array[i] + '.js';
-                node.src = currentUrl;
-            } else {
-                currentUrl = array[i];
-                switch (fileExt) {
-                    case 'js':
+           if (!in_array(uploaded, currentUrl)) {
+               
+               switch (fileExt) {
+                  case 'js':
+                      node = createNode();
+                      node.src = currentUrl;
+                      break;
+                  case 'css':
+                      node = createNode('css');
+                      node.href = currentUrl;
+                      break;
+                      default:
                         node = createNode();
-                        node.src = currentUrl;
-                        break;
-                    case 'css':
-                        node = createNode('css');
-                        node.href = currentUrl;
-                        break;
-                }
-            }
-            //проверяем не был ли загружен этот файл ранее
-            if (!uploaded[currentUrl]) {
-                if (node.readyState) {
+                        node.src = currentUrl; 
+               }
+
+               if (node.readyState) {
                     node.onreadystatechange = function() {
                         if (node.readyState === 'complete' || node.readyState === 'loaded') {
                             node.onreadystatechange = null;
-                            i++;
-                            load(array, callback, i);
+                            modules.shift();
                         }
                     };    
-                } else {
+               } else {
                     node.onload = function () {
-                        i++;
-                        load(array, callback, i);
+                        modules.shift();
                     }
-                }
-                node.onerror = function () {
-                    throw ('Не могу загрузить скрипт ' + array[i]);
-                }
-                head.appendChild(node);
-            } else {
-                load(array, callback, i);    
-            }
-        } else {
-            callback(); 
+               }
+               node.onerror = function () {
+                   throw ('Не могу загрузить скрипт ' + modules[i]);
+               }
+               head.appendChild(node);
+               uploaded.push(currentUrl);
+           } else {
+               modules.shift();
+               if (names[1] === undefined) {
+                   currContext.name += '_' + file;
+                   currContext.queue.push(defQueue[file]);
+               }
+           }
         }
 
+        var loadInterval = setInterval(function () {
+            if (modules[0] !== undefined) {
+                _loading(modules[0]);   
+            } else {
+                clearInterval(loadInterval);
+                callback();
+            }
+        }, 100);
     };
-
+    /*
+    * Инициализирует модули
+    * @param Array array - массив названий модулей для инициализации
+    * @param Function callback - ф-я выполняется после инициализации
+    */
     var initModuls = function (array, callback) {
         var contextName = config.defContextName + '_' + array.join('_'),
             modules = [],
@@ -251,6 +261,11 @@ var require, define;
 
     /*
     * Подгружает зависимости
+    * @param Array modules - массив модулей для которых будет 
+    *  произведена попытка загрузка зависимостей
+    * @param Function callback - ф-я вызывается после подгрузки файлов 
+    *  всех зависимостей
+    * @param Int i - итератор  
     */
     var loadDeps = function (modules, callback, i) {
         var ln = modules.length,
@@ -264,7 +279,6 @@ var require, define;
             deps = modules[i][1];
 
             if (deps) {
-               //загружаем зависимости 
                load(deps, function () {
                    i++;
                    loadDeps(modules,callback,i);         
@@ -277,7 +291,10 @@ var require, define;
             callback();
         }
     };
-
+    /*
+    * Чистит массив с зарегистрируеммыми модулями, чтобы не было посторений
+    * @param Array array - массив с модулями
+    */
     var clearArray = function (array) {
         var ln = array.length, 
             newArray = [],
@@ -320,18 +337,15 @@ var require, define;
         switch (type) {
             case 1:
                 contextName += array.join('_');
-                //подгружаем js-файлы
                 var ln = array.length;
-                //Подгружаем скрипты
                 var interval = setInterval (function () {
                     if (!flag) {
-                        //Смотрим нужно ли создавать новый контекст или можно обойтись уже созданным
                         if (!contexts[contextName]) {
                             currContext = Sandbox();
 
                             load(array, function () {
                                 initModuls(array, function (sandbox) {
-                                    callback(sandbox);
+                                    callback(sandbox.modules);
                                     clearInterval(interval);
                                     flag= false;
                                 });     
@@ -349,7 +363,7 @@ var require, define;
             case 2:
                 load(array, function () {
                     var sandbox = new Sandbox();
-                    callback(sandbox);    
+                    callback(sandbox.modules);    
                 });
                 break;
         }
@@ -362,14 +376,13 @@ var require, define;
     * @param Function - тело модуля 
     */
     define = function (name, deps, callback) {
-        //проверяем если зависимости не переданны
         if(!isArray(deps)) {
             callback = deps;
             deps = null;
         }
         
-        //регистрируем новый модуль
         currContext.name += '_' + name; 
-        currContext.queue.push([name, deps, callback]);       
+        currContext.queue.push([name, deps, callback]);
+        defQueue[name] = [name, deps, callback];       
     };
 })(window);
