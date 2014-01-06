@@ -8,24 +8,27 @@
     </head>
     <body>
         <script type="text/javascript">
-
-            
+            /*
+            require.config({
+                'modulPath': 'js/modules/'
+            });
+            */
             require(['js/jquery-2.0.0.min.js', 'css/style.css'], function (obj) {
                 console.log(obj);
                 console.log('jQuery и стили были загружены');
             });
-            
+
             require(['ajax'], function (obj) {
                 console.log(obj);
                 console.log('Модули подгруженны!');
             });
             /*
             require(['widget'], function (obj) {
-                console.log(obj);
+            console.log(obj);
             });
-            
+
             require(['event','dom'], function (obj) {
-                console.log(obj);
+            console.log(obj);
             });
             */
         </script>

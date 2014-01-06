@@ -326,6 +326,8 @@ var require, define;
     require = function (array, callback, type) {
         var contextName = config.defContextName + '_';
         
+        //console.log(require.config);
+
         if (!isArray(array)) {
             throw ('В качестве списка модулей передан не массив!');
         }
@@ -366,6 +368,16 @@ var require, define;
                     callback(sandbox.modules);    
                 });
                 break;
+        }
+    };
+
+    require.config = function () {
+        var arg = arguments[0];
+
+        if (arg !== undefined) {
+            for (var i in arg) {
+                config[i] = arg[i];
+            }
         }
     };
 
