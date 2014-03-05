@@ -20,13 +20,14 @@ var require, define;
 
     config = {
         modulPath: 'js/modules/',
-        defContextName: 'context' 
+        defContextName: 'context'
     };
 
     var Sandbox = function () {
         if (!(this instanceof Sandbox)) {
             return new Sandbox();
         }
+
         this.name = config.defContextName;
         this.queue = [];
         this.modules = [];
@@ -50,31 +51,29 @@ var require, define;
             var queueLength = this.queue.length;
 
             depsAr[0] = null;
-
             if (deps) {//Если объявленны зависимости
                 for (var j = 0; j < queueLength; j++) {
                    if (in_array(deps, this.queue[j][0])) {
                        var loc = this.queue[j],
                        name = loc[0],
                        depend = this['modules'][name] = {};
-
                        //добавляем зависимости для внутренних элементов
                        this.addDeps(loc);
                        depsAr.push(this['modules'][name]);
                    }
                 }
             }
-                
+
             if (this['modules'][moduleName] === undefined) {
                 this['modules'][moduleName] = {};
-                depsAr[0] = this['modules'][moduleName];   
+                depsAr[0] = this['modules'][moduleName];
                 this['modules'][moduleName] = moduleFn.apply(this,depsAr);
             } else {
                 depsAr[0] = this['modules'][moduleName];
                 this['modules'][moduleName] = moduleFn.apply(this,depsAr);
-            }           
+            }
        }
-       return this;    
+       return this;
     };
 
     /*
@@ -84,8 +83,8 @@ var require, define;
     Sandbox.prototype.addDeps = function (module) {
         var deps = module[1],
             moduleName = module[0],
-            moduleFn = module[2], 
-            ln = null, 
+            moduleFn = module[2],
+            ln = null,
             depsAr = [];
 
         depsAr[0] = {};
@@ -106,23 +105,23 @@ var require, define;
             this['modules'][moduleName] = moduleFn.apply(this, depsAr);
         }  else {
             this['modules'][moduleName] = moduleFn({});
-        }      
+        }
     };
 
     //проверка на массив
     var isArray = function (item) {
-        return ob.toString.call(item) === "[object Array]"; 
+        return ob.toString.call(item) === "[object Array]";
     };
     //Присутствие элемента в массиве
     var in_array = function (array, string) {
         var ln = array.length;
-        
+
         while (ln--) {
             var loc = array[ln];
             if (loc === string) {
                 return true;
             }
-        }    
+        }
         return false;
     };
     /*
@@ -139,10 +138,10 @@ var require, define;
 
         switch (type) {
             case 'js':
-                node = d.createElement('script');  
+                node = d.createElement('script');
                 node.type = "text/javascript";
                 node.charset = "utf-8";
-                node.async = true;       
+                node.async = true;
                 break;
             case 'css':
                 node = d.createElement('link');
@@ -150,7 +149,7 @@ var require, define;
                 node.rel = "stylesheet";
                 break;
         }
-        return node;   
+        return node;
     };
     /*
     * Ф-я для подгрузки файлов на сайт
@@ -160,10 +159,10 @@ var require, define;
     */
     var load = function (array, callback) {
        var modules = [], ln = array.length, currentUrl = '', _loading = null, node = null;
-       
+
        for (var i = 0; i < ln; i++) {
-           modules.push(array[i]);    
-       } 
+           modules.push(array[i]);
+       }
 
        currentUrl = '';
 
@@ -178,7 +177,6 @@ var require, define;
           }
 
            if (!in_array(uploaded, currentUrl)) {
-               
                switch (fileExt) {
                   case 'js':
                       node = createNode();
@@ -190,7 +188,7 @@ var require, define;
                       break;
                       default:
                         node = createNode();
-                        node.src = currentUrl; 
+                        node.src = currentUrl;
                }
 
                if (node.readyState) {
@@ -199,11 +197,9 @@ var require, define;
                             node.onreadystatechange = null;
                             modules.shift();
                         }
-                    };    
+                    };
                } else {
-                    node.onload = function () {
-                        modules.shift();
-                    }
+                    node.onload = function () {modules.shift();};
                }
                node.onerror = function () {
                    throw ('Не могу загрузить скрипт ' + modules[i]);
@@ -211,17 +207,17 @@ var require, define;
                head.appendChild(node);
                uploaded.push(currentUrl);
            } else {
-               modules.shift();
-               if (names[1] === undefined) {
+               if (names[1] === undefined && defQueue[file] !== undefined) {
                    currContext.name += '_' + file;
                    currContext.queue.push(defQueue[file]);
+                   modules.shift();
                }
            }
         }
 
         var loadInterval = setInterval(function () {
             if (modules[0] !== undefined) {
-                _loading(modules[0]);   
+                _loading(modules[0]);
             } else {
                 clearInterval(loadInterval);
                 callback();
@@ -241,14 +237,14 @@ var require, define;
 
         clearArray(currContext.queue);
         //Выбираем из очереди только модули и отсекаем зависимости
-        
+
         ln = currContext.queue.length;
         for (var i = 0; i < ln; i++) {
             if (in_array(array, currContext.queue[i][0])) {
                 modules.push(currContext.queue[i]);
             }
         }
-        
+
         //Тут надо разобраться с зависимостями
         loadDeps(currContext.queue, function () {
             //расширяем объект модулями
@@ -261,11 +257,11 @@ var require, define;
 
     /*
     * Подгружает зависимости
-    * @param Array modules - массив модулей для которых будет 
+    * @param Array modules - массив модулей для которых будет
     *  произведена попытка загрузка зависимостей
-    * @param Function callback - ф-я вызывается после подгрузки файлов 
+    * @param Function callback - ф-я вызывается после подгрузки файлов
     *  всех зависимостей
-    * @param Int i - итератор  
+    * @param Int i - итератор
     */
     var loadDeps = function (modules, callback, i) {
         var ln = modules.length,
@@ -281,11 +277,11 @@ var require, define;
             if (deps) {
                load(deps, function () {
                    i++;
-                   loadDeps(modules,callback,i);         
-               }); 
+                   loadDeps(modules,callback,i);
+               });
             } else {
                i++;
-               loadDeps(modules,callback,i); 
+               loadDeps(modules,callback,i);
             }
         } else {
             callback();
@@ -296,7 +292,7 @@ var require, define;
     * @param Array array - массив с модулями
     */
     var clearArray = function (array) {
-        var ln = array.length, 
+        var ln = array.length,
             newArray = [],
             retArray = [];
 
@@ -305,7 +301,7 @@ var require, define;
                 newArray[array[i][0]] = array[i];
             }
         }
-       
+
         for (var i in newArray) {
             retArray.push(newArray[i]);
         }
@@ -317,7 +313,7 @@ var require, define;
     * Подгрузка и инициализация модулей
     * @param Array массив модулей
     * @param Function вынкция обратного вызова
-    * @param Int type - тип подгрузки 
+    * @param Int type - тип подгрузки
     *  1 - передается массив названий модулей объявленных при помощи define
     *  Создает изолированное пространнствои для рабботы с модулями
     *  2 - Передается массив путей для загружаемых файлов
@@ -325,7 +321,7 @@ var require, define;
     */
     require = function (array, callback, type) {
         var contextName = config.defContextName + '_';
-        
+
         //console.log(require.config);
 
         if (!isArray(array)) {
@@ -344,28 +340,27 @@ var require, define;
                     if (!flag) {
                         if (!contexts[contextName]) {
                             currContext = Sandbox();
-
                             load(array, function () {
                                 initModuls(array, function (sandbox) {
                                     callback(sandbox.modules);
                                     clearInterval(interval);
                                     flag= false;
-                                });     
-                           
+                                });
+
                             });
                         } else {
                             clearInterval(interval);
-                            callback(contexts[contextName].sandbox);   
-                            flag= false; 
+                            callback(contexts[contextName].sandbox);
+                            flag= false;
                         }
                         flag= true;
                     }
-                }, 100);       
+                }, 100);
                 break;
             case 2:
                 load(array, function () {
                     var sandbox = new Sandbox();
-                    callback(sandbox.modules);    
+                    callback(sandbox.modules);
                 });
                 break;
         }
@@ -385,16 +380,16 @@ var require, define;
     * Регистрирует модуль
     * @param String name - название модуля
     * @param Array deps - массив зависимостей
-    * @param Function - тело модуля 
+    * @param Function - тело модуля
     */
     define = function (name, deps, callback) {
         if(!isArray(deps)) {
             callback = deps;
             deps = null;
         }
-        
-        currContext.name += '_' + name; 
+
+        currContext.name += '_' + name;
         currContext.queue.push([name, deps, callback]);
-        defQueue[name] = [name, deps, callback];       
+        defQueue[name] = [name, deps, callback];
     };
 })(window);
